@@ -15,6 +15,7 @@ import com.pengxh.autodingding.R
 import com.pengxh.autodingding.bean.DateTimeBean
 import com.pengxh.autodingding.extensions.diffCurrentMillis
 import com.pengxh.autodingding.extensions.isEarlierThenCurrent
+import java.util.Calendar
 
 class DateTimeAdapter(context: Context, private val dataBeans: MutableList<DateTimeBean>) :
     RecyclerView.Adapter<DateTimeAdapter.ItemViewHolder>() {
@@ -41,18 +42,18 @@ class DateTimeAdapter(context: Context, private val dataBeans: MutableList<DateT
     }
 
     override fun onBindViewHolder(holder: ItemViewHolder, position: Int) {
-        val timeBean = dataBeans[position]
+        val timeBean = dataBeans[holder.adapterPosition]
         holder.dateView.text = timeBean.date
         holder.timeView.text = timeBean.time
         holder.weekDayView.text = timeBean.weekDay
 
         holder.itemView.setOnClickListener {
-            itemClickListener?.onItemClick(position)
+            itemClickListener?.onItemClick(holder.adapterPosition)
         }
 
         // 长按监听
         holder.itemView.setOnLongClickListener {
-            itemClickListener?.onItemLongClick(position)
+            itemClickListener?.onItemLongClick(holder.adapterPosition)
             true
         }
 
@@ -82,6 +83,10 @@ class DateTimeAdapter(context: Context, private val dataBeans: MutableList<DateT
                     itemClickListener?.onCountDownFinish()
                     holder.countDownTextView.text = "任务已过期"
                     holder.countDownTextView.setTextColor(Color.RED)
+
+                    // 延长任务时间一天
+                    timeBean.extendOneDay()
+                    notifyItemChanged(holder.adapterPosition)
                 }
             }.start()
             countDownTimerHashMap[timeBean.uuid] = countDownTimer

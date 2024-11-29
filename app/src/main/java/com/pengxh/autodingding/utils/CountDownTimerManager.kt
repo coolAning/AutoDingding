@@ -1,5 +1,6 @@
 package com.pengxh.autodingding.utils
 
+import android.app.ActivityManager
 import android.content.Context
 import android.content.Intent
 import android.os.CountDownTimer
@@ -51,12 +52,14 @@ class CountDownTimerManager private constructor() : LifecycleOwner {
                 //如果倒计时结束，那么表明没有收到打卡成功的通知，需要将异常日志保存
                 if (SaveKeyValues.getValue(Constant.BACK_TO_HOME, false) as Boolean) {
                     //模拟点击Home键
-                    val home = Intent(Intent.ACTION_MAIN)
-                    home.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                    home.addCategory(Intent.CATEGORY_HOME)
-                    context.startActivity(home)
-                    Log.d(kTag, "onFinish: 模拟点击Home键")
-                    Thread.sleep(2000)
+                    val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+                    val tasks = activityManager.getRunningTasks(1)
+                    if (tasks.isNotEmpty()) {
+                        val task = tasks[0]
+                        activityManager.moveTaskToFront(task.id, 0)
+                        Log.d(kTag, "onFinish: 模拟点击Home键")
+                        Thread.sleep(2000)
+                    }
                 }
 
                 val intent = Intent(context, MainActivity::class.java)
