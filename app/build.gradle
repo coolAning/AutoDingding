@@ -78,13 +78,14 @@ android {
 }
 
 static def createRandomCode() {
-    def alphabetsInLowerCase = "abcdefghijklmnopqrstuvwxyz"
-    def randomString = ''
-    for (int i = 0; i < 10; i++) {
-        def randomIndex = (int) (Math.random() * alphabetsInLowerCase.length())
-        randomString += alphabetsInLowerCase.charAt(randomIndex)
-    }
-    return randomString
+//    def alphabetsInLowerCase = "abcdefghijklmnopqrstuvwxyz"
+//    def randomString = ''
+//    for (int i = 0; i < 10; i++) {
+//        def randomIndex = (int) (Math.random() * alphabetsInLowerCase.length())
+//        randomString += alphabetsInLowerCase.charAt(randomIndex)
+//    }
+//    return randomString
+    return "aning"
 }
 
 static def getBuildDate() {
