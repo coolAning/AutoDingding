@@ -1,6 +1,8 @@
 package com.pengxh.autodingding.service
 
+import android.app.ActivityManager
 import android.app.Notification
+import android.content.Context
 import android.content.Intent
 import android.os.BatteryManager
 import android.service.notification.NotificationListenerService
@@ -124,18 +126,22 @@ class NotificationMonitorService : NotificationListenerService(), LifecycleOwner
         }
     }
 
-    private suspend fun backToMainActivity() {
+    private fun backToMainActivity() {
         CountDownTimerManager.get.cancelTimer()
 
         if (SaveKeyValues.getValue(Constant.BACK_TO_HOME, false) as Boolean) {
-            //模拟点击Home键
-            val home = Intent(Intent.ACTION_MAIN)
-            home.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-            home.addCategory(Intent.CATEGORY_HOME)
-            startActivity(home)
-            Log.d(kTag, "onFinish: 模拟点击Home键")
-
-            delay(1000)
+            // 使用ActivityManager返回自己的应用
+            val activityManager = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+            val tasks = activityManager.getRunningTasks(Int.MAX_VALUE)
+            for (task in tasks) {
+                val baseActivity = task.baseActivity
+                if (baseActivity != null && baseActivity.packageName == packageName) {
+                    activityManager.moveTaskToFront(task.id, 0)
+                    Log.d(kTag, "返回自己的应用任务")
+                    break
+                }
+            }
+            Thread.sleep(2000)
         }
 
         val intent = Intent(this, MainActivity::class.java)

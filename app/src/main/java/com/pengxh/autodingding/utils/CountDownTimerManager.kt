@@ -36,14 +36,28 @@ class CountDownTimerManager private constructor() : LifecycleOwner {
     }
 
     private var timer: CountDownTimer? = null
-    //启动前台服务
+
+    // 启动前台服务
     private fun startForegroundService(context: Context) {
-        val intent = Intent(context, ForegroundRunningService::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            context.startForegroundService(intent)
-        } else {
-            context.startService(intent)
+        if (!isServiceRunning(context, ForegroundRunningService::class.java)) {
+            val intent = Intent(context, ForegroundRunningService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(intent)
+            } else {
+                context.startService(intent)
+            }
         }
+    }
+
+    // 检查服务是否在运行
+    private fun isServiceRunning(context: Context, serviceClass: Class<*>): Boolean {
+        val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+        for (service in activityManager.getRunningServices(Int.MAX_VALUE)) {
+            if (serviceClass.name == service.service.className) {
+                return true
+            }
+        }
+        return false
     }
 
     fun startTimer(context: Context, millisInFuture: Long, countDownInterval: Long) {
@@ -60,18 +74,21 @@ class CountDownTimerManager private constructor() : LifecycleOwner {
             }
 
             override fun onFinish() {
+                cancelTimer()
                 Log.d(kTag, "onFinish: 倒计时结束")
-                // 如果倒计时结束，那么表明没有收到打卡成功的通知，需要将异常日志保存
                 if (SaveKeyValues.getValue(Constant.BACK_TO_HOME, false) as Boolean) {
-                    // 模拟点击Home键
+                    // 使用ActivityManager返回自己的应用
                     val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
-                    val tasks = activityManager.getRunningTasks(1)
-                    if (tasks.isNotEmpty()) {
-                        val task = tasks[0]
-                        activityManager.moveTaskToFront(task.id, 0)
-                        Log.d(kTag, "onFinish: 模拟点击Home键")
-                        Thread.sleep(2000)
+                    val tasks = activityManager.getRunningTasks(Int.MAX_VALUE)
+                    for (task in tasks) {
+                        val baseActivity = task.baseActivity
+                        if (baseActivity != null && baseActivity.packageName == context.packageName) {
+                            activityManager.moveTaskToFront(task.id, 0)
+                            Log.d(kTag, "返回自己的应用任务")
+                            break
+                        }
                     }
+                    Thread.sleep(2000)
                 }
 
                 val intent = Intent(context, MainActivity::class.java)
