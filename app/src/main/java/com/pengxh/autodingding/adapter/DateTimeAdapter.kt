@@ -27,13 +27,13 @@ class DateTimeAdapter(
 
     private val kTag = "DateTimeAdapter"
     private val countDownTimerHashMap by lazy { HashMap<String, CountDownTimer>() }
-    private val randomTimeMap by lazy { HashMap<String, String>() }
     private val layoutInflater = LayoutInflater.from(context)
 
-    // 修改日期格式为包含秒数
+    // 日期格式化器，包含秒数
     private val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
     private val timeFormatter = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
     private val dateFormatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+    private val calendar = Calendar.getInstance()
 
     @SuppressLint("NotifyDataSetChanged")
     fun setRefreshData(dataRows: MutableList<DateTimeBean>) {
@@ -56,32 +56,15 @@ class DateTimeAdapter(
     override fun onBindViewHolder(holder: ItemViewHolder, position: Int) {
         val timeBean = dataBeans[holder.adapterPosition]
 
-        // 获取或生成随机时间
-        val randomTime = randomTimeMap[timeBean.uuid] ?: run {
-            try {
-                val calendar = Calendar.getInstance()
-                val originalTime = sdf.parse("${timeBean.date} ${timeBean.time}:00") // 添加秒数
-                if (originalTime != null) {
-                    calendar.time = originalTime
-                    val randomMinutes = Random().nextInt(21) // 0 到 20 分钟
-                    val randomSeconds = Random().nextInt(60) // 0 到 59 秒
-                    calendar.add(Calendar.MINUTE, randomMinutes)
-                    calendar.add(Calendar.SECOND, randomSeconds)
-                    val generatedTime = sdf.format(calendar.time)
-                    randomTimeMap[timeBean.uuid] = generatedTime // 保存随机时间
-                    generatedTime
-                } else {
-                    "${timeBean.date} ${timeBean.time}:00"
-                }
-            } catch (e: ParseException) {
-                e.printStackTrace()
-                "${timeBean.date} ${timeBean.time}:00"
-            }
-        }
+        // 停止之前的定时器，避免重复计时
+        stopCountDownTimer(timeBean)
+
+        // 生成随机时间
+        val randomTimeStr = generateRandomTime(timeBean)
 
         // 解析随机时间为日期和时间部分
         val dateTime = try {
-            sdf.parse(randomTime)
+            sdf.parse(randomTimeStr)
         } catch (e: ParseException) {
             e.printStackTrace()
             null
@@ -94,9 +77,7 @@ class DateTimeAdapter(
             // 更新界面显示为随机后的日期和时间
             holder.dateView.text = randomDate
             holder.timeView.text = randomTimeOnly
-            holder.weekDayView.text = timeBean.date.convertToWeek()
-
-            val randomTimeStr = sdf.format(dateTime)
+            holder.weekDayView.text = randomDate.convertToWeek()
 
             if (randomTimeStr.isEarlierThenCurrent()) {
                 holder.countDownTextView.text = "任务已过期"
@@ -107,58 +88,34 @@ class DateTimeAdapter(
                 holder.countDownTextView.setTextColor(Color.BLUE)
 
                 holder.countDownProgress.max = diffCurrentMillis.toInt()
-                // 刷新列表先停止之前的定时器，避免重复计时
-                stopCountDownTimer(timeBean)
 
-                // 重新计时
+                // 开始倒计时
                 val countDownTimer = object : CountDownTimer(diffCurrentMillis, 1000) {
                     override fun onTick(millisUntilFinished: Long) {
-                        holder.countDownProgress.progress =
-                            (diffCurrentMillis - millisUntilFinished).toInt()
+                        // 确保更新对应的视图
+                        if (holder.adapterPosition == position) {
+                            holder.countDownProgress.progress =
+                                (diffCurrentMillis - millisUntilFinished).toInt()
 
-                        holder.countDownTextView.text =
-                            "${millisUntilFinished / 1000}秒后执行定时任务"
+                            holder.countDownTextView.text =
+                                "${millisUntilFinished / 1000}秒后执行定时任务"
+                        }
                     }
 
                     override fun onFinish() {
-                        itemClickListener?.onCountDownFinish()
-                        holder.countDownTextView.text = "任务已过期"
-                        holder.countDownTextView.setTextColor(Color.RED)
+                        if (holder.adapterPosition == position) {
+                            holder.countDownTextView.text = "任务已过期"
+                            holder.countDownTextView.setTextColor(Color.RED)
 
-                        // 延长任务时间一天
-                        timeBean.extendOneDay()
-                        // 移除旧的随机时间
-                        randomTimeMap.remove(timeBean.uuid)
+                            // 执行任务完成后的操作
+                            itemClickListener?.onCountDownFinish()
 
-                        // 重新生成随机时间
-                        val newRandomTime = generateRandomTime(timeBean)
-                        randomTimeMap[timeBean.uuid] = newRandomTime
+                            // 延长任务时间一天
+                            extendTaskOneDay(timeBean)
 
-                        // 重新启动倒计时
-                        val newDateTime = sdf.parse(newRandomTime)
-                        if (newDateTime != null) {
-                            val newDiffCurrentMillis = newRandomTime.diffCurrentMillis()
-                            holder.countDownProgress.max = newDiffCurrentMillis.toInt()
-                            val newCountDownTimer = object : CountDownTimer(newDiffCurrentMillis, 1000) {
-                                override fun onTick(millisUntilFinished: Long) {
-                                    holder.countDownProgress.progress =
-                                        (newDiffCurrentMillis - millisUntilFinished).toInt()
-
-                                    holder.countDownTextView.text =
-                                        "${millisUntilFinished / 1000}秒后执行定时任务"
-                                }
-
-                                override fun onFinish() {
-                                    itemClickListener?.onCountDownFinish()
-                                    holder.countDownTextView.text = "任务已过期"
-                                    holder.countDownTextView.setTextColor(Color.RED)
-                                }
-                            }.start()
-                            countDownTimerHashMap[timeBean.uuid] = newCountDownTimer
+                            // 通知界面更新
+                            notifyItemChanged(holder.adapterPosition)
                         }
-
-                        // 通知界面更新
-                        notifyItemChanged(holder.adapterPosition)
                     }
                 }.start()
                 countDownTimerHashMap[timeBean.uuid] = countDownTimer
@@ -166,7 +123,7 @@ class DateTimeAdapter(
         } else {
             // 日期解析失败，处理异常情况
             holder.dateView.text = timeBean.date
-            holder.timeView.text = "${timeBean.time}:00"
+            holder.timeView.text = timeBean.time
             holder.weekDayView.text = timeBean.date.convertToWeek()
             holder.countDownTextView.text = "时间格式错误"
             holder.countDownTextView.setTextColor(Color.RED)
@@ -183,25 +140,64 @@ class DateTimeAdapter(
         }
     }
 
+    // 生成随机时间，不修改 timeBean
     private fun generateRandomTime(timeBean: DateTimeBean): String {
-        val calendar = Calendar.getInstance()
-        val originalTime = sdf.parse("${timeBean.date} ${timeBean.time}:00") // 添加秒数
-        if (originalTime != null) {
-            calendar.time = originalTime
+        val originalDateTimeStr = "${timeBean.date} ${timeBean.time}" // 已包含秒数
+        val originalDateTime = sdf.parse(originalDateTimeStr)
+        if (originalDateTime != null) {
+            calendar.time = originalDateTime
+
+            // 如果当前日期已经过去，延长一天
+            if (originalDateTime.before(Date())) {
+                extendTaskOneDay(timeBean)
+                calendar.time = sdf.parse("${timeBean.date} ${timeBean.time}")!!
+            }
+
+            // 添加随机延迟
             val randomMinutes = Random().nextInt(21) // 0 到 20 分钟
             val randomSeconds = Random().nextInt(60) // 0 到 59 秒
             calendar.add(Calendar.MINUTE, randomMinutes)
             calendar.add(Calendar.SECOND, randomSeconds)
-            return sdf.format(calendar.time)
+
+            // 生成新的日期时间字符串，不修改 timeBean
+            val newDateStr = dateFormatter.format(calendar.time)
+            val newTimeStr = timeFormatter.format(calendar.time)
+
+            // 返回新的日期时间字符串
+            return "$newDateStr $newTimeStr"
         }
-        return "${timeBean.date} ${timeBean.time}:00"
+        return originalDateTimeStr // 返回原始时间字符串
     }
 
+    // 延长任务时间一天，跳过周日，并考虑跨月、跨年情况
+    private fun extendTaskOneDay(timeBean: DateTimeBean) {
+        val originalDateTimeStr = "${timeBean.date} ${timeBean.time}"
+        val originalDateTime = sdf.parse(originalDateTimeStr)
+        if (originalDateTime != null) {
+            calendar.time = originalDateTime
+            calendar.add(Calendar.DAY_OF_MONTH, 1) // 增加一天
+
+            // 如果新日期是周日，继续加一天，跳过周日
+            if (calendar.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY) {
+                calendar.add(Calendar.DAY_OF_MONTH, 1)
+            }
+
+            val newDateStr = dateFormatter.format(calendar.time)
+            val newTimeStr = timeFormatter.format(calendar.time)
+
+            // 更新 timeBean 的日期和时间
+            timeBean.date = newDateStr
+            timeBean.time = newTimeStr
+        }
+    }
+
+    // 停止计时器
     fun stopCountDownTimer(bean: DateTimeBean) {
         val downTimer = countDownTimerHashMap[bean.uuid]
         if (downTimer != null) {
             downTimer.cancel()
-            Log.d(kTag, "stopCountDownTimer: ${bean.weekDay} ${bean.date} ${bean.time}")
+            countDownTimerHashMap.remove(bean.uuid)
+            Log.d(kTag, "stopCountDownTimer: ${bean.uuid}")
         }
     }
 
