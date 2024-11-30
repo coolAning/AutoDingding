@@ -85,20 +85,4 @@ public class DateTimeBean {
             e.printStackTrace();
         }
     }
-
-    // 添加生成随机时间的方法
-    public String getRandomTimeBefore() {
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault());
-        Calendar calendar = Calendar.getInstance();
-        try {
-            calendar.setTime(sdf.parse(date + " " + time));
-            Random random = new Random();
-            int randomMinutes = random.nextInt(20); // 生成0到19之间的随机数
-            calendar.add(Calendar.MINUTE, -randomMinutes);
-            return sdf.format(calendar.getTime());
-        } catch (ParseException e) {
-            e.printStackTrace();
-        }
-        return date + " " + time;
-    }
 }

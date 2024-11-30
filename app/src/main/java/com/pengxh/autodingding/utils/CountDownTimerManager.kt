@@ -3,6 +3,7 @@ package com.pengxh.autodingding.utils
 import android.app.ActivityManager
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.os.CountDownTimer
 import android.util.Log
 import androidx.lifecycle.Lifecycle
@@ -12,12 +13,12 @@ import androidx.lifecycle.lifecycleScope
 import com.pengxh.autodingding.extensions.createTextMail
 import com.pengxh.autodingding.extensions.sendTextMail
 import com.pengxh.autodingding.service.FloatingWindowService
+import com.pengxh.autodingding.service.ForegroundRunningService
 import com.pengxh.autodingding.ui.MainActivity
 import com.pengxh.kt.lite.extensions.show
 import com.pengxh.kt.lite.utils.SaveKeyValues
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-
 
 class CountDownTimerManager private constructor() : LifecycleOwner {
 
@@ -35,9 +36,19 @@ class CountDownTimerManager private constructor() : LifecycleOwner {
     }
 
     private var timer: CountDownTimer? = null
+    //启动前台服务
+    private fun startForegroundService(context: Context) {
+        val intent = Intent(context, ForegroundRunningService::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            context.startForegroundService(intent)
+        } else {
+            context.startService(intent)
+        }
+    }
 
     fun startTimer(context: Context, millisInFuture: Long, countDownInterval: Long) {
         Log.d(kTag, "startTimer: 开始倒计时")
+        startForegroundService(context) // 启动前台服务
         timer = object : CountDownTimer(millisInFuture, countDownInterval) {
             override fun onTick(millisUntilFinished: Long) {
                 val tick = millisUntilFinished / 1000
@@ -49,9 +60,10 @@ class CountDownTimerManager private constructor() : LifecycleOwner {
             }
 
             override fun onFinish() {
-                //如果倒计时结束，那么表明没有收到打卡成功的通知，需要将异常日志保存
+                Log.d(kTag, "onFinish: 倒计时结束")
+                // 如果倒计时结束，那么表明没有收到打卡成功的通知，需要将异常日志保存
                 if (SaveKeyValues.getValue(Constant.BACK_TO_HOME, false) as Boolean) {
-                    //模拟点击Home键
+                    // 模拟点击Home键
                     val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
                     val tasks = activityManager.getRunningTasks(1)
                     if (tasks.isNotEmpty()) {

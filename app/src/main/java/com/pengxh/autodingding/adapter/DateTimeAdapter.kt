@@ -129,6 +129,34 @@ class DateTimeAdapter(
                         timeBean.extendOneDay()
                         // 移除旧的随机时间
                         randomTimeMap.remove(timeBean.uuid)
+
+                        // 重新生成随机时间
+                        val newRandomTime = generateRandomTime(timeBean)
+                        randomTimeMap[timeBean.uuid] = newRandomTime
+
+                        // 重新启动倒计时
+                        val newDateTime = sdf.parse(newRandomTime)
+                        if (newDateTime != null) {
+                            val newDiffCurrentMillis = newRandomTime.diffCurrentMillis()
+                            holder.countDownProgress.max = newDiffCurrentMillis.toInt()
+                            val newCountDownTimer = object : CountDownTimer(newDiffCurrentMillis, 1000) {
+                                override fun onTick(millisUntilFinished: Long) {
+                                    holder.countDownProgress.progress =
+                                        (newDiffCurrentMillis - millisUntilFinished).toInt()
+
+                                    holder.countDownTextView.text =
+                                        "${millisUntilFinished / 1000}秒后执行定时任务"
+                                }
+
+                                override fun onFinish() {
+                                    itemClickListener?.onCountDownFinish()
+                                    holder.countDownTextView.text = "任务已过期"
+                                    holder.countDownTextView.setTextColor(Color.RED)
+                                }
+                            }.start()
+                            countDownTimerHashMap[timeBean.uuid] = newCountDownTimer
+                        }
+
                         // 通知界面更新
                         notifyItemChanged(holder.adapterPosition)
                     }
@@ -153,6 +181,20 @@ class DateTimeAdapter(
             itemClickListener?.onItemLongClick(holder.adapterPosition)
             true
         }
+    }
+
+    private fun generateRandomTime(timeBean: DateTimeBean): String {
+        val calendar = Calendar.getInstance()
+        val originalTime = sdf.parse("${timeBean.date} ${timeBean.time}:00") // 添加秒数
+        if (originalTime != null) {
+            calendar.time = originalTime
+            val randomMinutes = Random().nextInt(21) // 0 到 20 分钟
+            val randomSeconds = Random().nextInt(60) // 0 到 59 秒
+            calendar.add(Calendar.MINUTE, randomMinutes)
+            calendar.add(Calendar.SECOND, randomSeconds)
+            return sdf.format(calendar.time)
+        }
+        return "${timeBean.date} ${timeBean.time}:00"
     }
 
     fun stopCountDownTimer(bean: DateTimeBean) {
