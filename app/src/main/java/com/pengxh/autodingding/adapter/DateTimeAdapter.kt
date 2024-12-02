@@ -154,7 +154,7 @@ class DateTimeAdapter(
             }
 
             // 添加随机延迟
-            val randomMinutes = Random().nextInt(21) // 0 到 20 分钟
+            val randomMinutes = Random().nextInt(19) // 0 到 20 分钟
             val randomSeconds = Random().nextInt(60) // 0 到 59 秒
             calendar.add(Calendar.MINUTE, randomMinutes)
             calendar.add(Calendar.SECOND, randomSeconds)
@@ -177,17 +177,13 @@ class DateTimeAdapter(
             calendar.time = originalDateTime
             calendar.add(Calendar.DAY_OF_MONTH, 1) // 增加一天
 
-            // 如果新日期是周日，继续加一天，跳过周日
-            if (calendar.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY) {
-                calendar.add(Calendar.DAY_OF_MONTH, 1)
-            }
-
             val newDateStr = dateFormatter.format(calendar.time)
             val newTimeStr = timeFormatter.format(calendar.time)
 
             // 更新 timeBean 的日期和时间
             timeBean.date = newDateStr
             timeBean.time = newTimeStr
+
         }
     }
 
