@@ -20,6 +20,7 @@ import com.pengxh.kt.lite.utils.SaveKeyValues
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
+
 class CountDownTimerManager private constructor() : LifecycleOwner {
 
     private val kTag = "CountDownTimerManager"
@@ -62,6 +63,7 @@ class CountDownTimerManager private constructor() : LifecycleOwner {
 
     fun startTimer(context: Context, millisInFuture: Long, countDownInterval: Long) {
         Log.d(kTag, "startTimer: 开始倒计时")
+        FloatingWindowService.weakReferenceHandler?.sendEmptyMessage(Constant.SHOW_FLOATING_WINDOW_CODE)
         startForegroundService(context) // 启动前台服务
         timer = object : CountDownTimer(millisInFuture, countDownInterval) {
             override fun onTick(millisUntilFinished: Long) {
@@ -94,6 +96,8 @@ class CountDownTimerManager private constructor() : LifecycleOwner {
                 val intent = Intent(context, MainActivity::class.java)
                 intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
                 context.startActivity(intent)
+
+                FloatingWindowService.weakReferenceHandler?.sendEmptyMessage(Constant.HIDE_FLOATING_WINDOW_CODE)
 
                 val emailAddress = SaveKeyValues.getValue(Constant.EMAIL_ADDRESS, "") as String
                 if (emailAddress.isEmpty()) {
