@@ -16,13 +16,14 @@ import com.pengxh.autodingding.bean.DateTimeBean
 import com.pengxh.autodingding.extensions.convertToWeek
 import com.pengxh.autodingding.extensions.diffCurrentMillis
 import com.pengxh.autodingding.extensions.isEarlierThenCurrent
+import com.pengxh.autodingding.greendao.DateTimeBeanDao
 import java.text.ParseException
 import java.text.SimpleDateFormat
 import java.util.*
 
 class DateTimeAdapter(
     context: Context,
-    private val dataBeans: MutableList<DateTimeBean>
+    private val dateTimeBeanDao: DateTimeBeanDao
 ) : RecyclerView.Adapter<DateTimeAdapter.ItemViewHolder>() {
 
     private val kTag = "DateTimeAdapter"
@@ -34,6 +35,10 @@ class DateTimeAdapter(
     private val timeFormatter = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
     private val dateFormatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
     private val calendar = Calendar.getInstance()
+
+    private val dataBeans: MutableList<DateTimeBean> = dateTimeBeanDao.queryBuilder().orderDesc(
+        DateTimeBeanDao.Properties.Date
+    ).list()
 
     @SuppressLint("NotifyDataSetChanged")
     fun setRefreshData(dataRows: MutableList<DateTimeBean>) {
@@ -51,6 +56,7 @@ class DateTimeAdapter(
             layoutInflater.inflate(R.layout.item_timer_rv_l, parent, false)
         )
     }
+
 
     @SuppressLint("SetTextI18n")
     override fun onBindViewHolder(holder: ItemViewHolder, position: Int) {
@@ -79,47 +85,40 @@ class DateTimeAdapter(
             holder.timeView.text = randomTimeOnly
             holder.weekDayView.text = randomDate.convertToWeek()
 
-            if (randomTimeStr.isEarlierThenCurrent()) {
-                holder.countDownTextView.text = "任务已过期"
-                holder.countDownTextView.setTextColor(Color.RED)
-            } else {
-                val diffCurrentMillis = randomTimeStr.diffCurrentMillis()
+            val diffCurrentMillis = randomTimeStr.diffCurrentMillis()
 
-                holder.countDownTextView.setTextColor(Color.BLUE)
+            holder.countDownTextView.setTextColor(Color.BLUE)
+            holder.countDownProgress.max = diffCurrentMillis.toInt()
 
-                holder.countDownProgress.max = diffCurrentMillis.toInt()
-
-                // 开始倒计时
-                val countDownTimer = object : CountDownTimer(diffCurrentMillis, 1000) {
-                    override fun onTick(millisUntilFinished: Long) {
-                        // 确保更新对应的视图
-                        if (holder.adapterPosition == position) {
-                            holder.countDownProgress.progress =
-                                (diffCurrentMillis - millisUntilFinished).toInt()
-
-                            holder.countDownTextView.text =
-                                "${millisUntilFinished / 1000}秒后执行定时任务"
-                        }
+            // 开始倒计时
+            val countDownTimer = object : CountDownTimer(diffCurrentMillis, 1000) {
+                override fun onTick(millisUntilFinished: Long) {
+                    // 确保更新对应的视图
+                    if (holder.adapterPosition == position) {
+                        holder.countDownProgress.progress =
+                            (diffCurrentMillis - millisUntilFinished).toInt()
+                        holder.countDownTextView.text =
+                            "${millisUntilFinished / 1000}秒后执行定时任务"
                     }
+                }
 
-                    override fun onFinish() {
-                        if (holder.adapterPosition == position) {
-                            holder.countDownTextView.text = "任务已过期"
-                            holder.countDownTextView.setTextColor(Color.RED)
+                override fun onFinish() {
+                    if (holder.adapterPosition == position) {
+                        holder.countDownTextView.text = "任务已过期"
+                        holder.countDownTextView.setTextColor(Color.RED)
 
-                            // 执行任务完成后的操作
-                            itemClickListener?.onCountDownFinish()
+                        // 执行任务完成后的操作
+                        itemClickListener?.onCountDownFinish()
 
-                            // 延长任务时间一天
-                            extendTaskOneDay(timeBean)
+                        // 延长任务时间一天
+                        extendTaskOneDay(timeBean)
 
-                            // 通知界面更新
-                            notifyItemChanged(holder.adapterPosition)
-                        }
+                        // 通知界面更新
+                        notifyItemChanged(holder.adapterPosition)
                     }
-                }.start()
-                countDownTimerHashMap[timeBean.uuid] = countDownTimer
-            }
+                }
+            }.start()
+            countDownTimerHashMap[timeBean.uuid] = countDownTimer
         } else {
             // 日期解析失败，处理异常情况
             holder.dateView.text = timeBean.date
@@ -140,7 +139,7 @@ class DateTimeAdapter(
         }
     }
 
-    // 生成随机时间，不修改 timeBean
+
     private fun generateRandomTime(timeBean: DateTimeBean): String {
         val originalDateTimeStr = "${timeBean.date} ${timeBean.time}" // 已包含秒数
         val originalDateTime = sdf.parse(originalDateTimeStr)
@@ -153,15 +152,20 @@ class DateTimeAdapter(
                 calendar.time = sdf.parse("${timeBean.date} ${timeBean.time}")!!
             }
 
-            // 添加随机延迟
-            val randomMinutes = Random().nextInt(19) // 0 到 20 分钟
-            val randomSeconds = Random().nextInt(60) // 0 到 59 秒
-            calendar.add(Calendar.MINUTE, randomMinutes)
-            calendar.add(Calendar.SECOND, randomSeconds)
+            var newDateTime: Date
+            do {
+                // 添加随机延迟
+                val randomMinutes = Random().nextInt(21) // 0 到 20 分钟
+                val randomSeconds = Random().nextInt(60) // 0 到 59 秒
+                calendar.add(Calendar.MINUTE, randomMinutes)
+                calendar.add(Calendar.SECOND, randomSeconds)
+
+                newDateTime = calendar.time
+            } while (newDateTime.before(Date())) // 确保生成的随机时间不会过期
 
             // 生成新的日期时间字符串，不修改 timeBean
-            val newDateStr = dateFormatter.format(calendar.time)
-            val newTimeStr = timeFormatter.format(calendar.time)
+            val newDateStr = dateFormatter.format(newDateTime)
+            val newTimeStr = timeFormatter.format(newDateTime)
 
             // 返回新的日期时间字符串
             return "$newDateStr $newTimeStr"
@@ -169,7 +173,7 @@ class DateTimeAdapter(
         return originalDateTimeStr // 返回原始时间字符串
     }
 
-    // 延长任务时间一天，跳过周日，并考虑跨月、跨年情况
+    // 延长任务时间一天，并考虑跨月、跨年情况
     private fun extendTaskOneDay(timeBean: DateTimeBean) {
         val originalDateTimeStr = "${timeBean.date} ${timeBean.time}"
         val originalDateTime = sdf.parse(originalDateTimeStr)
@@ -184,6 +188,7 @@ class DateTimeAdapter(
             timeBean.date = newDateStr
             timeBean.time = newTimeStr
 
+            dateTimeBeanDao.update(timeBean)
         }
     }
 

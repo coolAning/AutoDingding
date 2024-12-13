@@ -64,7 +64,7 @@ class DingDingFragment : KotlinBaseFragment<FragmentDingdingBinding>() {
             dateTimeAdapter.setRefreshData(queryResult)
         } else {
             dataBeans = queryResult
-            dateTimeAdapter = DateTimeAdapter(requireContext(), dataBeans)
+            dateTimeAdapter = DateTimeAdapter(requireContext() ,dateTimeBeanDao)
             binding.recyclerView.adapter = dateTimeAdapter
             binding.recyclerView.addItemDecoration(
                 RecyclerViewItemOffsets(
