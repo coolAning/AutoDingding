@@ -36,7 +36,7 @@ class DateTimeAdapter(
     private val dateFormatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
     private val calendar = Calendar.getInstance()
 
-    private val dataBeans: MutableList<DateTimeBean> = dateTimeBeanDao.queryBuilder().orderDesc(
+    private var dataBeans: MutableList<DateTimeBean> = dateTimeBeanDao.queryBuilder().orderDesc(
         DateTimeBeanDao.Properties.Date
     ).list()
 
@@ -57,9 +57,13 @@ class DateTimeAdapter(
         )
     }
 
-
     @SuppressLint("SetTextI18n")
     override fun onBindViewHolder(holder: ItemViewHolder, position: Int) {
+        // 确保 holder.adapterPosition 在 dataBeans 列表范围内
+        if (holder.adapterPosition >= dataBeans.size) {
+            return
+        }
+
         val timeBean = dataBeans[holder.adapterPosition]
 
         // 停止之前的定时器，避免重复计时
@@ -139,7 +143,6 @@ class DateTimeAdapter(
         }
     }
 
-
     private fun generateRandomTime(timeBean: DateTimeBean): String {
         val originalDateTimeStr = "${timeBean.date} ${timeBean.time}" // 已包含秒数
         val originalDateTime = sdf.parse(originalDateTimeStr)
@@ -155,7 +158,7 @@ class DateTimeAdapter(
             var newDateTime: Date
             do {
                 // 添加随机延迟
-                val randomMinutes = Random().nextInt(21) // 0 到 20 分钟
+                val randomMinutes = Random().nextInt(19) // 0 到 20 分钟
                 val randomSeconds = Random().nextInt(60) // 0 到 59 秒
                 calendar.add(Calendar.MINUTE, randomMinutes)
                 calendar.add(Calendar.SECOND, randomSeconds)

@@ -124,6 +124,9 @@ class DingDingFragment : KotlinBaseFragment<FragmentDingdingBinding>() {
                             AlertControlDialog.OnDialogButtonClickListener {
                             override fun onConfirmClick() {
                                 deleteTask(dataBeans[position])
+
+                                //刷新列表
+                                getAutoDingDingTasks(true)
                             }
 
                             override fun onCancelClick() {
@@ -165,6 +168,7 @@ class DingDingFragment : KotlinBaseFragment<FragmentDingdingBinding>() {
                     bean.weekDay = bean.date.convertToWeek()
 
                     dateTimeBeanDao.insert(bean)
+                    dataBeans.add(bean)
                     //刷新列表
                     getAutoDingDingTasks(true)
                 }
