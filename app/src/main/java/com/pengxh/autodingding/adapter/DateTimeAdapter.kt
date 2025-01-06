@@ -144,36 +144,59 @@ class DateTimeAdapter(
     }
 
     private fun generateRandomTime(timeBean: DateTimeBean): String {
-        val originalDateTimeStr = "${timeBean.date} ${timeBean.time}" // 已包含秒数
+        val originalDateTimeStr = "${timeBean.date} ${timeBean.time}"
         val originalDateTime = sdf.parse(originalDateTimeStr)
         if (originalDateTime != null) {
             calendar.time = originalDateTime
 
-            // 如果当前日期已经过去，延长一天
+            // 如果当前日期已经过去，先延长一天
             if (originalDateTime.before(Date())) {
                 extendTaskOneDay(timeBean)
                 calendar.time = sdf.parse("${timeBean.date} ${timeBean.time}")!!
             }
 
+            // 保存原始时间
+            var baseDateTime = calendar.time
             var newDateTime: Date
+            val maxAttempts = 5 // 最大尝试次数
+            var attempts = 0
+
             do {
+                attempts++
+                // 重置到基准时间
+                calendar.time = baseDateTime
+
                 // 添加随机延迟
-                val randomMinutes = Random().nextInt(19) // 0 到 20 分钟
+                val randomMinutes = Random().nextInt(19) // 0 到 18 分钟
                 val randomSeconds = Random().nextInt(60) // 0 到 59 秒
                 calendar.add(Calendar.MINUTE, randomMinutes)
                 calendar.add(Calendar.SECOND, randomSeconds)
 
                 newDateTime = calendar.time
-            } while (newDateTime.before(Date())) // 确保生成的随机时间不会过期
 
-            // 生成新的日期时间字符串，不修改 timeBean
+                // 如果尝试次数达到上限，且仍然无法生成有效时间，则将基准时间向后延一天
+                if (attempts >= maxAttempts && newDateTime.before(Date())) {
+                    Log.d(kTag, "达到最大尝试次数，将时间延后一天")
+                    calendar.time = baseDateTime
+                    calendar.add(Calendar.DAY_OF_MONTH, 1)
+                    baseDateTime = calendar.time
+                    attempts = 0 // 重置尝试次数
+                }
+
+            } while (newDateTime.before(Date()) && attempts < maxAttempts)
+
+            // 添加日志用于调试
+            Log.d(kTag, "原始时间: ${sdf.format(originalDateTime)}")
+            Log.d(kTag, "生成的随机时间: ${sdf.format(newDateTime)}")
+            Log.d(kTag, "尝试次数: $attempts")
+
+            // 生成新的日期时间字符串
             val newDateStr = dateFormatter.format(newDateTime)
             val newTimeStr = timeFormatter.format(newDateTime)
 
-            // 返回新的日期时间字符串
             return "$newDateStr $newTimeStr"
         }
-        return originalDateTimeStr // 返回原始时间字符串
+        return originalDateTimeStr
     }
 
     // 延长任务时间一天，并考虑跨月、跨年情况
