@@ -1,15 +1,18 @@
 package com.pengxh.daily.app.extensions
 
+import android.app.ActivityManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import android.util.Log
 import androidx.core.app.NotificationManagerCompat
 import com.pengxh.daily.app.service.FloatingWindowService
 import com.pengxh.daily.app.ui.MainActivity
 import com.pengxh.daily.app.utils.Constant
 import com.pengxh.daily.app.utils.MessageEvent
+import com.pengxh.kt.lite.utils.RetrofitFactory.kTag
 import com.pengxh.kt.lite.utils.SaveKeyValues
 import com.pengxh.kt.lite.widget.dialog.AlertMessageDialog
 import org.greenrobot.eventbus.EventBus
@@ -75,17 +78,46 @@ fun Context.openApplication(packageName: String, needEmail: Boolean) {
 }
 
 fun Context.backToMainActivity() {
+    // 取消倒计时（保留原有功能）
     EventBus.getDefault().post(MessageEvent(Constant.CANCEL_COUNT_DOWN_TIMER_CODE))
-    if (SaveKeyValues.getValue(Constant.BACK_TO_HOME_KEY, false) as Boolean) {
-        //模拟点击Home键
-        val home = Intent(Intent.ACTION_MAIN)
-        home.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
-        home.addCategory(Intent.CATEGORY_HOME)
-        this.startActivity(home)
-        Thread.sleep(2000)
+    
+    // 创建返回到MainActivity的Intent
+    val intent = Intent(this, MainActivity::class.java).apply {
+        // 以下标志组合能更有效地将应用带到前台
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)       // 在新任务中启动
+        addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)      // 清除目标活动上方的所有活动
+        addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)     // 如果已经运行就不创建新实例
+        
+        // 传递额外信息，告知MainActivity是从自动任务返回的
+        putExtra("from_auto_task", true)
+    }
+    
+    // 检查设置是否需要优先返回主屏幕
+    if (SaveKeyValues.getValue(Constant.BACK_TO_HOME, false) as Boolean) {
+        // 使用Handler延迟执行，避免主线程阻塞
+        android.os.Handler().postDelayed({
+            this.startActivity(intent)
+        }, 500)
+        
+        // 先回到主屏幕
+        val homeIntent = Intent(Intent.ACTION_MAIN).apply {
+            addCategory(Intent.CATEGORY_HOME)
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        }
+        this.startActivity(homeIntent)
+    } else {
+        // 直接启动MainActivity
+        this.startActivity(intent)
     }
 
-    val intent = Intent(this, MainActivity::class.java)
-    intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
-    this.startActivity(intent)
+    // 对于高版本Android，可以使用以下方式提高任务切换的成功率
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+        try {
+            // 请求系统将此应用带到前台，仅在Android 9.0+可用
+            val am = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+            am.appTasks.firstOrNull()?.moveToFront()
+        } catch (e: Exception) {
+            Log.e(kTag, "无法将应用移至前台: ${e.message}")
+        }
+    }
 }
