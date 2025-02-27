@@ -43,4 +43,25 @@ object Constant {
     const val ZFB = "com.eg.android.AlipayGphone"
 
     const val FOREGROUND_RUNNING_SERVICE_TITLE = "应用前台保活服务，请勿关闭此通知"
+
+
+    //发送者邮箱账号
+    const val USER_MAIL_ACCOUNT = "neu_aning@163.com"
+
+    //邮箱授权码，不是密码（有效期180天）
+    const val PERMISSION_CODE = "TOECGEADFVVKUIVT"
+
+    //发送者邮箱地址
+    const val MAIL_FROM_ADDRESS = "neu_aning@163.com"
+
+    //发送者邮箱服务器
+    const val MAIL_SERVER = "smtp.163.com"
+    const val MAIL_SERVER_PORT = "25"
+
+    const val EMAIL_ADDRESS = "emailAddress"
+    const val EMAIL_TITLE = "emailTitle"
+    const val TIMEOUT = "timeout"
+    const val BACK_TO_HOME = "backToHome"
+
+
 }

@@ -18,10 +18,10 @@ android {
 
     signingConfigs {
         release {
-            storeFile file('DailyTask.jks')
-            storePassword '123456789'
+            storeFile file('sleepmore.jks')
+            storePassword 'aning'
             keyAlias 'key0'
-            keyPassword '123456789'
+            keyPassword 'aning'
         }
     }
 
@@ -77,13 +77,13 @@ android {
 }
 
 static def createRandomCode() {
-    def alphabetsInLowerCase = "abcdefghijklmnopqrstuvwxyz"
-    def randomString = ''
-    for (int i = 0; i < 6; i++) {
-        def randomIndex = (int) (Math.random() * alphabetsInLowerCase.length())
-        randomString += alphabetsInLowerCase.charAt(randomIndex)
-    }
-    return randomString
+//    def alphabetsInLowerCase = "abcdefghijklmnopqrstuvwxyz"
+//    def randomString = ''
+//    for (int i = 0; i < 6; i++) {
+//        def randomIndex = (int) (Math.random() * alphabetsInLowerCase.length())
+//        randomString += alphabetsInLowerCase.charAt(randomIndex)
+//    }
+    return "aning"
 }
 
 static def getBuildDate() {

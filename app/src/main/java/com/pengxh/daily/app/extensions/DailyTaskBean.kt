@@ -18,7 +18,7 @@ fun DailyTaskBean.random(): Pair<String, Int> {
     val array = this.time.split(":")
 
     //随机[0,5]分钟内随机
-    val seedMinute = (0 until 5).random()
+    val seedMinute = (0 until 20).random()
     val tempMinute = array[1].toInt() + seedMinute
     val minute = if (tempMinute >= 60) {
         array[1]
